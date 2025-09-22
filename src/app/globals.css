@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0b0d12;
+  --foreground: #e6eaf2;
 }
 
 @theme inline {
@@ -14,20 +14,48 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0b0d12;
+    --foreground: #e6eaf2;
   }
 }
 
 body {
-  background: var(--background);
+  background: radial-gradient(1200px 800px at 10% -10%, rgba(99, 102, 241, 0.25), transparent 50%),
+    radial-gradient(1000px 700px at 90% 0%, rgba(236, 72, 153, 0.2), transparent 50%),
+    linear-gradient(180deg, #0b0d12 0%, #0b0d12 100%);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
 .grid-background {
-  background-image: linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+  background-image: linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
   background-size: 50px 50px;
   mask-image: radial-gradient(ellipse 80% 50% at 50% 50%, black 40%, transparent 100%);
   -webkit-mask-image: radial-gradient(ellipse 80% 50% at 50% 50%, black 40%, transparent 100%);
+}
+
+/* Glass card */
+.card-glass {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.05));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.input-glass {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.button-ghost {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.heading-gradient {
+  background: linear-gradient(90deg, #e5e7eb 0%, #a5b4fc 50%, #f5d0fe 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
