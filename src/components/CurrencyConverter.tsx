@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { ComponentType, SVGProps } from "react";
-import { fetchLatestRates, RatesResponse } from "../lib/api";
+import {
+  fetchLatestRates,
+  fetchCurrencies,
+  RatesResponse,
+  CurrenciesResponse,
+} from "../lib/api";
 import { convertAmount } from "../lib/convert";
 import { ArrowDownUp } from "lucide-react";
 import * as FlagIcons from "country-flag-icons/react/3x2";
@@ -21,11 +26,18 @@ function getCountryCodeForCurrency(currency: string): string | null {
   return upper.slice(0, 2);
 }
 
-function getFlagComponentForCurrency(currency: string): ComponentType<SVGProps<SVGSVGElement>> | null {
+function getFlagComponentForCurrency(
+  currency: string
+): ComponentType<SVGProps<SVGSVGElement>> | null {
   const countryCode = getCountryCodeForCurrency(currency);
   if (!countryCode) return null;
   // country-flag-icons exports React components named by the country code, e.g., US, IN, GB
-  const Comp = (FlagIcons as Record<string, ComponentType<SVGProps<SVGSVGElement>> | undefined>)[countryCode];
+  const Comp = (
+    FlagIcons as Record<
+      string,
+      ComponentType<SVGProps<SVGSVGElement>> | undefined
+    >
+  )[countryCode];
   return Comp ?? null;
 }
 
@@ -35,13 +47,18 @@ export default function CurrencyConverter() {
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Holds currency metadata (code -> { name, symbol, ... }) for nicer labels in dropdowns
+  const [currencies, setCurrencies] = useState<CurrenciesResponse | null>(null);
 
   const [amount, setAmount] = useState<number>(1);
   const [from, setFrom] = useState<string>("USD");
   const [to, setTo] = useState<string>("INR");
 
   useEffect(() => {
+    // Fetch latest FX rates and currency metadata on mount
     let mounted = true;
+
+    // Track rates loading state specifically for the small status row
     setLoading(true);
     fetchLatestRates("USD")
       .then((r: RatesResponse) => {
@@ -56,6 +73,17 @@ export default function CurrencyConverter() {
       .finally(() => {
         if (mounted) setLoading(false);
       });
+
+    // Currency metadata is used to show human-friendly names in selects
+    fetchCurrencies()
+      .then((data: CurrenciesResponse) => {
+        if (mounted) setCurrencies(data);
+      })
+      .catch((err: Error) => {
+        // Reuse error surface
+        if (mounted) setError(String(err));
+      });
+
     return () => {
       mounted = false;
     };
@@ -76,6 +104,17 @@ export default function CurrencyConverter() {
   const FromFlag = getFlagComponentForCurrency(from);
   const ToFlag = getFlagComponentForCurrency(to);
 
+  // Build dropdown options. Prefer available rate codes; fall back to a small common set.
+  const currencyOptions = useMemo(() => {
+    const codes = Object.keys(rates).length
+      ? Object.keys(rates)
+      : COMMON_CURRENCIES;
+    return codes.map((code) => {
+      const name = currencies?.[code]?.name;
+      return { code, label: name ? `${code} — ${name}` : code };
+    });
+  }, [rates, currencies]);
+
   return (
     <div className="card-glass rounded-2xl p-6 max-w-xl mx-auto text-white">
       {error ? (
@@ -86,29 +125,46 @@ export default function CurrencyConverter() {
         {/* From field */}
         <div className="flex items-center gap-3">
           <div className="w-28 shrink-0 relative">
-            <label className="sr-only" htmlFor="from-currency">From currency</label>
+            <label className="sr-only" htmlFor="from-currency">
+              From currency
+            </label>
             <select
               id="from-currency"
               value={from}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setFrom(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                setFrom(e.target.value)
+              }
               className="mt-0 block w-full rounded-xl border border-white/15 bg-zinc-900/60 px-3 pr-9 py-2 text-sm text-zinc-300 outline-none focus:ring-2 focus:ring-indigo-400"
             >
-              {Object.keys(rates).length
-                ? Object.keys(rates).map((c) => <option key={c}>{c}</option>)
-                : COMMON_CURRENCIES.map((c) => <option key={c}>{c}</option>)}
+              {currencyOptions.map(({ code, label }) => (
+                <option key={code} value={code}>
+                  {label}
+                </option>
+              ))}
             </select>
             <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
-              {FromFlag ? <FromFlag className="w-5 h-5 rounded-sm shadow-sm" aria-hidden={true} /> : <span className="text-lg">🌐</span>}
+              {FromFlag ? (
+                <FromFlag
+                  className="w-5 h-5 rounded-sm shadow-sm"
+                  aria-hidden={true}
+                />
+              ) : (
+                <span className="text-lg">🌐</span>
+              )}
             </span>
           </div>
           <div className="relative flex-1">
-            <label className="sr-only" htmlFor="amount">Enter amount</label>
+            <label className="sr-only" htmlFor="amount">
+              Enter amount
+            </label>
             <input
               id="amount"
               type="number"
               placeholder="Enter amount"
               value={String(amount)}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAmount(Number(e.target.value))}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setAmount(Number(e.target.value))
+              }
               className="block w-full rounded-xl border border-white/15 bg-transparent px-4 py-3 text-base placeholder-zinc-500 outline-none focus:ring-2 focus:ring-indigo-400"
               min="0"
             />
@@ -134,23 +190,38 @@ export default function CurrencyConverter() {
         {/* To field */}
         <div className="flex items-center gap-3">
           <div className="w-28 shrink-0 relative">
-            <label className="sr-only" htmlFor="to-currency">To currency</label>
+            <label className="sr-only" htmlFor="to-currency">
+              To currency
+            </label>
             <select
               id="to-currency"
               value={to}
-              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTo(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                setTo(e.target.value)
+              }
               className="mt-0 block w-full rounded-xl border border-white/15 bg-zinc-900/60 px-3 pr-9 py-2 text-sm text-zinc-300 outline-none focus:ring-2 focus:ring-indigo-400"
             >
-              {Object.keys(rates).length
-                ? Object.keys(rates).map((c) => <option key={c}>{c}</option>)
-                : COMMON_CURRENCIES.map((c) => <option key={c}>{c}</option>)}
+              {currencyOptions.map(({ code, label }) => (
+                <option key={code} value={code}>
+                  {label}
+                </option>
+              ))}
             </select>
             <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
-              {ToFlag ? <ToFlag className="w-5 h-5 rounded-sm shadow-sm" aria-hidden={true} /> : <span className="text-lg">🌐</span>}
+              {ToFlag ? (
+                <ToFlag
+                  className="w-5 h-5 rounded-sm shadow-sm"
+                  aria-hidden={true}
+                />
+              ) : (
+                <span className="text-lg">🌐</span>
+              )}
             </span>
           </div>
           <div className="relative flex-1">
-            <label className="sr-only" htmlFor="converted">Converted amount</label>
+            <label className="sr-only" htmlFor="converted">
+              Converted amount
+            </label>
             <input
               id="converted"
               type="text"
