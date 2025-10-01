@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { ComponentType, SVGProps } from "react";
 import {
   fetchLatestRates,
   fetchCurrencies,
@@ -9,37 +8,13 @@ import {
   CurrenciesResponse,
 } from "../lib/api";
 import { convertAmount } from "../lib/convert";
-import { ArrowDownUp } from "lucide-react";
-import * as FlagIcons from "country-flag-icons/react/3x2";
+import { ArrowDownUp, ChevronDown } from "lucide-react";
 
 type RatesMap = Record<string, number>;
 
 const COMMON_CURRENCIES = ["USD", "EUR", "INR", "GBP", "JPY", "AUD", "CAD"];
 
-// Map currency code -> ISO 3166-1 alpha-2 country/region code
-// For many currencies, the first two letters match the country code (USD -> US, JPY -> JP, etc.).
-// Add special cases where needed.
-function getCountryCodeForCurrency(currency: string): string | null {
-  const upper = currency.toUpperCase();
-  if (upper === "EUR") return "EU"; // European Union
-  if (upper === "GBP") return "GB"; // Great Britain
-  return upper.slice(0, 2);
-}
-
-function getFlagComponentForCurrency(
-  currency: string
-): ComponentType<SVGProps<SVGSVGElement>> | null {
-  const countryCode = getCountryCodeForCurrency(currency);
-  if (!countryCode) return null;
-  // country-flag-icons exports React components named by the country code, e.g., US, IN, GB
-  const Comp = (
-    FlagIcons as Record<
-      string,
-      ComponentType<SVGProps<SVGSVGElement>> | undefined
-    >
-  )[countryCode];
-  return Comp ?? null;
-}
+// (Flags removed to match simplified dropdown design)
 
 export default function CurrencyConverter() {
   const [ratesResponse, setRatesResponse] = useState<RatesResponse | null>(
@@ -101,8 +76,7 @@ export default function CurrencyConverter() {
     // silently ignore until rates available
   }
 
-  const FromFlag = getFlagComponentForCurrency(from);
-  const ToFlag = getFlagComponentForCurrency(to);
+  // Flags removed
 
   // Build dropdown options. Prefer available rate codes; fall back to a small common set.
   const currencyOptions = useMemo(() => {
@@ -111,7 +85,8 @@ export default function CurrencyConverter() {
       : COMMON_CURRENCIES;
     return codes.map((code) => {
       const name = currencies?.[code]?.name;
-      return { code, label: name ? `${code} — ${name}` : code };
+      // Show human-readable currency names (fallback to code)
+      return { code, label: name ?? code };
     });
   }, [rates, currencies]);
 
@@ -122,9 +97,23 @@ export default function CurrencyConverter() {
       ) : null}
 
       <div className="space-y-5">
-        {/* From field */}
-        <div className="flex items-center gap-3">
-          <div className="w-28 shrink-0 relative">
+        {/* From row: amount input + currency select in one field */}
+        <div className="flex items-center rounded-xl border border-white/15 bg-zinc-900/60 px-3 py-2">
+          <label className="sr-only" htmlFor="amount">
+            Enter amount
+          </label>
+          <input
+            id="amount"
+            type="number"
+            value={String(amount)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setAmount(Number(e.target.value))
+            }
+            min="0"
+            className="flex-1 bg-transparent border-0 outline-none focus:ring-0 px-1 py-2 text-base placeholder-zinc-500"
+          />
+          <span className="mx-3 h-6 w-px bg-white/15" />
+          <div className="relative">
             <label className="sr-only" htmlFor="from-currency">
               From currency
             </label>
@@ -134,7 +123,7 @@ export default function CurrencyConverter() {
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
                 setFrom(e.target.value)
               }
-              className="mt-0 block w-full rounded-xl border border-white/15 bg-zinc-900/60 px-3 pr-9 py-2 text-sm text-zinc-300 outline-none focus:ring-2 focus:ring-indigo-400"
+              className="appearance-none bg-transparent border-0 pr-6 pl-2 py-2 text-sm text-zinc-300 outline-none"
             >
               {currencyOptions.map(({ code, label }) => (
                 <option key={code} value={code}>
@@ -142,32 +131,7 @@ export default function CurrencyConverter() {
                 </option>
               ))}
             </select>
-            <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
-              {FromFlag ? (
-                <FromFlag
-                  className="w-5 h-5 rounded-sm shadow-sm"
-                  aria-hidden={true}
-                />
-              ) : (
-                <span className="text-lg">🌐</span>
-              )}
-            </span>
-          </div>
-          <div className="relative flex-1">
-            <label className="sr-only" htmlFor="amount">
-              Enter amount
-            </label>
-            <input
-              id="amount"
-              type="number"
-              placeholder="Enter amount"
-              value={String(amount)}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                setAmount(Number(e.target.value))
-              }
-              className="block w-full rounded-xl border border-white/15 bg-transparent px-4 py-3 text-base placeholder-zinc-500 outline-none focus:ring-2 focus:ring-indigo-400"
-              min="0"
-            />
+            <ChevronDown className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" aria-hidden={true} />
           </div>
         </div>
 
@@ -187,9 +151,20 @@ export default function CurrencyConverter() {
           </button>
         </div>
 
-        {/* To field */}
-        <div className="flex items-center gap-3">
-          <div className="w-28 shrink-0 relative">
+        {/* To row: converted amount + currency select in one field */}
+        <div className="flex items-center rounded-xl border border-white/15 bg-zinc-900/60 px-3 py-2">
+          <label className="sr-only" htmlFor="converted">
+            Converted amount
+          </label>
+          <input
+            id="converted"
+            type="text"
+            readOnly
+            value={isFinite(converted) ? `${converted.toFixed(2)}` : ""}
+            className="flex-1 bg-transparent border-0 outline-none px-1 py-2 text-base"
+          />
+          <span className="mx-3 h-6 w-px bg-white/15" />
+          <div className="relative">
             <label className="sr-only" htmlFor="to-currency">
               To currency
             </label>
@@ -199,7 +174,7 @@ export default function CurrencyConverter() {
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
                 setTo(e.target.value)
               }
-              className="mt-0 block w-full rounded-xl border border-white/15 bg-zinc-900/60 px-3 pr-9 py-2 text-sm text-zinc-300 outline-none focus:ring-2 focus:ring-indigo-400"
+              className="appearance-none bg-transparent border-0 pr-6 pl-2 py-2 text-sm text-zinc-300 outline-none"
             >
               {currencyOptions.map(({ code, label }) => (
                 <option key={code} value={code}>
@@ -207,29 +182,7 @@ export default function CurrencyConverter() {
                 </option>
               ))}
             </select>
-            <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
-              {ToFlag ? (
-                <ToFlag
-                  className="w-5 h-5 rounded-sm shadow-sm"
-                  aria-hidden={true}
-                />
-              ) : (
-                <span className="text-lg">🌐</span>
-              )}
-            </span>
-          </div>
-          <div className="relative flex-1">
-            <label className="sr-only" htmlFor="converted">
-              Converted amount
-            </label>
-            <input
-              id="converted"
-              type="text"
-              readOnly
-              placeholder="Converted amount"
-              value={isFinite(converted) ? `${converted.toFixed(4)}` : ""}
-              className="block w-full rounded-xl border border-white/15 bg-transparent px-4 py-3 text-base placeholder-zinc-500 outline-none"
-            />
+            <ChevronDown className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400" aria-hidden={true} />
           </div>
         </div>
       </div>
